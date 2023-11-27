@@ -8,15 +8,34 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_services.dart';
+import 'lettercontent_page.dart';
 
 class Letter {
+  String id;
   LatLng position;
   String content;
   String userId;
   String? imageUrl;  // 이미지 URL 필드 추가
 
-  Letter({required this.position, required this.content, required this.userId, this.imageUrl});
+  Letter({required this.id,required this.position, required this.content, required this.userId, this.imageUrl});
 }
+
+class Message {
+  final String userId;
+  final String content;
+  final int timestamp; // Unix timestamp
+
+  Message({required this.userId, required this.content, required this.timestamp});
+
+  factory Message.fromSnapshot(Map<dynamic, dynamic> snapshot) {
+    return Message(
+      userId: snapshot['userId'] as String,
+      content: snapshot['content'] as String,
+      timestamp: snapshot['timestamp'] as int,
+    );
+  }
+}
+
 
 
 class HomePage extends StatefulWidget {
@@ -37,7 +56,7 @@ class _HomePageState extends State<HomePage> {
   LatLng _initialcameraposition = LatLng(35.8673, 127.7339);
   LatLng? _currentPosition;
 
-  Set<Marker> _letterMarkers = {};
+  final Set<Marker> _letterMarkers = {};
   BitmapDescriptor sourceIcon = BitmapDescriptor.defaultMarker;
   BitmapDescriptor latterIcon = BitmapDescriptor.defaultMarker;
 
@@ -89,6 +108,7 @@ class _HomePageState extends State<HomePage> {
             letters.forEach((key, value) {
               LatLng letterPosition = LatLng(value['latitude'], value['longitude']);
               Letter letter = Letter(
+                id: key,  // Firebase 키를 ID로 사용
                 position: letterPosition,
                 content: value['content'],
                 userId: value['userId'],
@@ -100,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                   markerId: MarkerId(key),
                   position: letterPosition,
                   icon: latterIcon,
-                  onTap: () => _showLetterContent(letter),
+                  onTap: () => showLetterContentPage(letter),
                 ),
               );
             });
@@ -110,7 +130,38 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Widget buildMessageBubble(String content, bool isCurrentUser) {
+    return Align(
+      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.all(10),
+        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isCurrentUser ? Colors.blue : Colors.grey[300],
+          borderRadius: isCurrentUser
+              ? BorderRadius.circular(15).subtract(BorderRadius.only(bottomRight: Radius.circular(15)))
+              : BorderRadius.circular(15).subtract(BorderRadius.only(bottomLeft: Radius.circular(15))),
+        ),
+        child: Text(
+          content,
+          style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black),
+        ),
+      ),
+    );
+  }
+
+  void showLetterContentPage(Letter letter) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => LetterContentPage(letter: letter),
+      ),
+    );
+  }
+
+
   void _showLetterContent(Letter letter) {
+    TextEditingController _messageController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -118,16 +169,74 @@ class _HomePageState extends State<HomePage> {
           title: Text("Letter Content"),
           content: SingleChildScrollView(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 letter.imageUrl != null
                     ? Image.network(letter.imageUrl!)  // 이미지 표시
                     : SizedBox(),  // 이미지 URL이 없을 경우 공백 표시
                 SizedBox(height: 10),
                 Text(letter.content),
+                SizedBox(height: 10),
+                StreamBuilder(
+                  stream: databaseReference!.child('Letters/${letter.id}/Messages').onValue,
+                  builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
+                    if (snapshot.hasData && !snapshot.hasError) {
+                      Map<dynamic, dynamic> messagesSnapshot = snapshot.data!.snapshot.value as Map<dynamic, dynamic>? ?? {};
+
+                      List<Message> messages = messagesSnapshot.entries.map((entry) {
+                        return Message.fromSnapshot(entry.value as Map<dynamic, dynamic>);
+                      }).toList();
+
+                      // 메시지 목록을 ListView.builder로 표시합니다.
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          var message = messages[index];
+                          bool isCurrentUser = message.userId == _auth.currentUser?.uid;
+                          // buildMessageBubble 함수를 사용하여 말풍선 스타일로 메시지를 표시합니다.
+                          return buildMessageBubble(message.content, isCurrentUser);
+                        },
+                      );
+                    } else {
+                      // 데이터가 없거나 오류가 발생한 경우 로딩 인디케이터를 표시합니다.
+                      return Center(child: CircularProgressIndicator());
+                    }
+                  },
+                ),
               ],
             ),
           ),
           actions: <Widget>[
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: "Type your message here...",
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: () {
+                      if (_messageController.text.isNotEmpty) {
+                        var messageRef = databaseReference!.child('Letters/${letter.id}/Messages').push();
+                        messageRef.set({
+                          'userId': _auth.currentUser?.uid,
+                          'content': _messageController.text,
+                          'timestamp': ServerValue.timestamp,
+                        });
+                        _messageController.clear();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
             TextButton(
               child: Text("Close"),
               onPressed: () {
@@ -139,7 +248,6 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
 
   _getCurrentLocation() async {
     LocationData position = await location.getLocation();
@@ -281,8 +389,6 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
-  TextEditingController _letterContentController = TextEditingController();
 
   void _saveLetterWithImage(LatLng position, String content, XFile imageFile) async {
     String? userId = _auth.currentUser?.uid;
