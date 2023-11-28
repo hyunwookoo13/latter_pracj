@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:image_picker/image_picker.dart';
+import '../auth/AddFriendPage.dart';
 import '../services/auth_services.dart';
 import 'lettercontent_page.dart';
 
@@ -46,6 +48,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   AuthService authService = AuthService();
 
   GoogleMapController? _controller;
@@ -68,10 +71,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     super.initState();
     databaseReference = FirebaseDatabase.instance.ref().child("Locations");
     _getCurrentLocation();
-    setCustomUserIcon();
+    setCustomUserIcon(currentUserId);
     setCustomMarkerIcon();
     _loadLetters();
   }
@@ -130,122 +134,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget buildMessageBubble(String content, bool isCurrentUser) {
-    return Align(
-      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        padding: EdgeInsets.all(10),
-        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-        decoration: BoxDecoration(
-          color: isCurrentUser ? Colors.blue : Colors.grey[300],
-          borderRadius: isCurrentUser
-              ? BorderRadius.circular(15).subtract(BorderRadius.only(bottomRight: Radius.circular(15)))
-              : BorderRadius.circular(15).subtract(BorderRadius.only(bottomLeft: Radius.circular(15))),
-        ),
-        child: Text(
-          content,
-          style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black),
-        ),
-      ),
-    );
-  }
-
   void showLetterContentPage(Letter letter) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => LetterContentPage(letter: letter),
       ),
-    );
-  }
-
-
-  void _showLetterContent(Letter letter) {
-    TextEditingController _messageController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Letter Content"),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                letter.imageUrl != null
-                    ? Image.network(letter.imageUrl!)  // 이미지 표시
-                    : SizedBox(),  // 이미지 URL이 없을 경우 공백 표시
-                SizedBox(height: 10),
-                Text(letter.content),
-                SizedBox(height: 10),
-                StreamBuilder(
-                  stream: databaseReference!.child('Letters/${letter.id}/Messages').onValue,
-                  builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
-                    if (snapshot.hasData && !snapshot.hasError) {
-                      Map<dynamic, dynamic> messagesSnapshot = snapshot.data!.snapshot.value as Map<dynamic, dynamic>? ?? {};
-
-                      List<Message> messages = messagesSnapshot.entries.map((entry) {
-                        return Message.fromSnapshot(entry.value as Map<dynamic, dynamic>);
-                      }).toList();
-
-                      // 메시지 목록을 ListView.builder로 표시합니다.
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          var message = messages[index];
-                          bool isCurrentUser = message.userId == _auth.currentUser?.uid;
-                          // buildMessageBubble 함수를 사용하여 말풍선 스타일로 메시지를 표시합니다.
-                          return buildMessageBubble(message.content, isCurrentUser);
-                        },
-                      );
-                    } else {
-                      // 데이터가 없거나 오류가 발생한 경우 로딩 인디케이터를 표시합니다.
-                      return Center(child: CircularProgressIndicator());
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: "Type your message here...",
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.send),
-                    onPressed: () {
-                      if (_messageController.text.isNotEmpty) {
-                        var messageRef = databaseReference!.child('Letters/${letter.id}/Messages').push();
-                        messageRef.set({
-                          'userId': _auth.currentUser?.uid,
-                          'content': _messageController.text,
-                          'timestamp': ServerValue.timestamp,
-                        });
-                        _messageController.clear();
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              child: Text("Close"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -293,10 +186,28 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  void setCustomUserIcon() {
-    BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "assets/images/user1.png").then((icon) {
-      sourceIcon = icon;
-    });
+  Future<String?> getUserPhotoURL(String userId) async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
+    // 'data()' 메서드의 반환 값을 'Map<String, dynamic>'으로 캐스팅합니다.
+    Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
+
+    return userData?['photoURL'] as String?;
+  }
+
+  Future<void> setCustomUserIcon(String userId) async {
+    String? photoURL = await getUserPhotoURL(userId);
+
+    if (photoURL != null && photoURL.isNotEmpty) {
+      BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
+          ImageConfiguration.empty, photoURL);
+
+      setState(() {
+        sourceIcon = customIcon;
+      });
+    } else {
+      print("사용자 photoURL을 찾을 수 없음");
+    }
   }
 
   void setCustomMarkerIcon() {
@@ -406,12 +317,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _navigateToAddFriendPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => AddFriendPage()),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.cancel_outlined))],
+        title: Text("Peace Map"),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.logout))],
       ),
       body: _getMap(),
       floatingActionButton: FloatingActionButton(
