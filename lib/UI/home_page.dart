@@ -1,18 +1,24 @@
+
 import 'dart:async';
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-
+import 'package:image_picker/image_picker.dart';
+import '../auth/AddFriendPage.dart';
 import '../services/auth_services.dart';
 
 class Letter {
   LatLng position;
   String content;
   String userId;
+  String? imageUrl;  // 이미지 URL 필드 추가
 
-  Letter({required this.position, required this.content, required this.userId});
+  Letter({required this.position, required this.content, required this.userId, this.imageUrl});
 }
 
 
@@ -24,6 +30,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   AuthService authService = AuthService();
 
   GoogleMapController? _controller;
@@ -42,15 +49,38 @@ class _HomePageState extends State<HomePage> {
 
   Map<String, Letter> _letters = {};
 
+  XFile? _selectedImage;
+
   @override
   void initState() {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     super.initState();
     databaseReference = FirebaseDatabase.instance.ref().child("Locations");
     _getCurrentLocation();
-    setCustomUserIcon();
-    setCustomMarkerIcon();
+    setCustomUserIcon(currentUserId);
     _loadLetters();
+    setCustomMarkerIcon();
   }
+
+  Future<void> _pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
+  }
+
+  Future<String> uploadImageToFirebase(XFile imageFile) async {
+    FirebaseStorage storage = FirebaseStorage.instance;
+    Reference ref = storage.ref().child("path/to/storage/${imageFile.name}");
+    UploadTask uploadTask = ref.putFile(File(imageFile.path));
+    await uploadTask.whenComplete(() {});
+    return await ref.getDownloadURL();
+  }
+
 
   void _loadLetters() {
     databaseReference!.child("Letters").onValue.listen((event) {
@@ -67,6 +97,7 @@ class _HomePageState extends State<HomePage> {
                 position: letterPosition,
                 content: value['content'],
                 userId: value['userId'],
+                imageUrl: value['imageUrl'],  // 이미지 URL 추가
               );
               _letters[key] = letter;
               _letterMarkers.add(
@@ -74,7 +105,7 @@ class _HomePageState extends State<HomePage> {
                   markerId: MarkerId(key),
                   position: letterPosition,
                   icon: latterIcon,
-                  onTap: () => _showLetterContent(letter.content),
+                  onTap: () => _showLetterContent(letter),
                 ),
               );
             });
@@ -84,14 +115,22 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _showLetterContent(String content) {
+  void _showLetterContent(Letter letter) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text("Letter Content"),
           content: SingleChildScrollView(
-            child: Text(content),
+            child: Column(
+              children: [
+                letter.imageUrl != null
+                    ? Image.network(letter.imageUrl!)  // 이미지 표시
+                    : SizedBox(),  // 이미지 URL이 없을 경우 공백 표시
+                SizedBox(height: 10),
+                Text(letter.content),
+              ],
+            ),
           ),
           actions: <Widget>[
             TextButton(
@@ -105,6 +144,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+
 
   _getCurrentLocation() async {
     LocationData position = await location.getLocation();
@@ -149,13 +189,29 @@ class _HomePageState extends State<HomePage> {
     _locationSubscription?.cancel();
     super.dispose();
   }
+  Future<String?> getUserPhotoURL(String userId) async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
-  void setCustomUserIcon() {
-    BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "assets/images/user1.png").then((icon) {
-      sourceIcon = icon;
-    });
+    // 'data()' 메서드의 반환 값을 'Map<String, dynamic>'으로 캐스팅합니다.
+    Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
+
+    return userData?['photoURL'] as String?;
   }
 
+  Future<void> setCustomUserIcon(String userId) async {
+    String? photoURL = await getUserPhotoURL(userId);
+
+    if (photoURL != null && photoURL.isNotEmpty) {
+      BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
+          ImageConfiguration.empty, photoURL);
+
+      setState(() {
+        sourceIcon = customIcon;
+      });
+    } else {
+      print("사용자 photoURL을 찾을 수 없음");
+    }
+  }
   void setCustomMarkerIcon() {
     BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "assets/images/gift.png").then((icon) {
       latterIcon = icon;
@@ -184,6 +240,16 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
                 SizedBox(height: 10),
+                // Button to pick an image
+                TextButton(
+                  onPressed: _pickImage,
+                  child: Text("Pick an Image"),
+                ),
+
+                // Display the selected image
+                if (_selectedImage != null)
+                  Image.file(File(_selectedImage!.path)),
+
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white, // 텍스트 필드 색상
@@ -220,7 +286,7 @@ class _HomePageState extends State<HomePage> {
                       onPressed: () {
                         // 편지 내용 저장 및 처리 코드 추가
                         if (_currentPosition != null && _letterController.text.isNotEmpty) {
-                          _saveLetterToFirebase(_currentPosition!, _letterController.text);
+                          _saveLetterWithImage(_currentPosition!, _letterController.text, _selectedImage!);
                           _letterController.clear();
                         }
                         Navigator.pop(context); // 다이얼로그 닫기
@@ -239,35 +305,56 @@ class _HomePageState extends State<HomePage> {
 
   TextEditingController _letterContentController = TextEditingController();
 
-  void _saveLetterToFirebase(LatLng position, String content) {
+  void _saveLetterWithImage(LatLng position, String content, XFile imageFile) async {
     String? userId = _auth.currentUser?.uid;
     if (userId != null) {
+      String imageUrl = await uploadImageToFirebase(imageFile);
       databaseReference!.child("Letters").push().set({
         'latitude': position.latitude,
         'longitude': position.longitude,
         'content': content,
         'userId': userId,
+        'imageUrl': imageUrl,  // 이미지 URL 추가
       });
     } else {
       print("User is not logged in");
     }
   }
+  void _navigateToAddFriendPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => AddFriendPage()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Location Tracker'),
-        actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.cancel_outlined))],
-      ),
-      body: _getMap(),
-      floatingActionButton: FloatingActionButton(
-        foregroundColor: Color(0xFF6117D6),
-        backgroundColor: Color(0xFF6117D6),
-        onPressed: _showLetterDialog,
-        child: Icon(Icons.create,color: Colors.white,),
-      ),
+        appBar: AppBar(
+          actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.cancel_outlined))],
+        ),
+        body: _getMap(),
+        floatingActionButton:
+        Stack(
+            alignment: Alignment.bottomRight,
+            children: <Widget>[
+              Padding(
+                padding: EdgeInsets.only(bottom: 60.0),
+                child: FloatingActionButton(
+                  onPressed: _navigateToAddFriendPage,
+                  child: Icon(Icons.person_add),
+                  tooltip: '친구 추가',
+                  heroTag: 'addFriend',
+                ),
+              ),
+              FloatingActionButton(
+                foregroundColor: Color(0xFF6117D6),
+                backgroundColor: Color(0xFF6117D6),
+                onPressed: _showLetterDialog,
+                child: Icon(Icons.create,color: Colors.white,),
+              ),
+            ])
     );
+
   }
 
   Widget _getMap(){
