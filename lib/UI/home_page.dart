@@ -334,12 +334,25 @@ class _HomePageState extends State<HomePage> {
         actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.logout))],
       ),
       body: _getMap(),
-      floatingActionButton: FloatingActionButton(
-        foregroundColor: Color(0xFF6117D6),
-        backgroundColor: Color(0xFF6117D6),
-        onPressed: _showLetterDialog,
-        child: Icon(Icons.create,color: Colors.white,),
-      ),
+      floatingActionButton: Stack(
+          alignment: Alignment.bottomRight,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.only(bottom: 60.0),
+              child: FloatingActionButton(
+                onPressed: _navigateToAddFriendPage,
+                child: Icon(Icons.person_add),
+                tooltip: '친구 추가',
+                heroTag: 'addFriend',
+              ),
+            ),
+            FloatingActionButton(
+              foregroundColor: Color(0xFF6117D6),
+              backgroundColor: Color(0xFF6117D6),
+              onPressed: _showLetterDialog,
+              child: Icon(Icons.create,color: Colors.white,),
+            ),
+          ])
     );
   }
 
