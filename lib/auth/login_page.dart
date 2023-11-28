@@ -98,7 +98,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   borderRadius: BorderRadius.circular(30), // 버튼 모서리 둥글게
                 ),
               ),
-              onPressed: authService.hangleSignIn,
+              onPressed: authService.handleSignIn,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
