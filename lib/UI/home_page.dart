@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import '../auth/AddFriendPage.dart';
 import '../services/auth_services.dart';
 import 'lettercontent_page.dart';
+import 'my_page.dart';
 
 class Letter {
   String id;
@@ -331,6 +332,15 @@ class _HomePageState extends State<HomePage> {
         title: Text("Peace Map"),
         centerTitle: true,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.account_circle), // 마이페이지 아이콘
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MyPage()),
+            );
+          },
+        ),
         actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.logout))],
       ),
       body: _getMap(),
