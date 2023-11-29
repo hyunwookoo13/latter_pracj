@@ -48,6 +48,7 @@ dependencies:
   flutter_widget_to_image: ^0.0.1
   image_picker: ^1.0.4
   firebase_storage: ^11.5.2
+  rive: ^0.12.3
 
 dev_dependencies:
   flutter_test:
@@ -59,7 +60,6 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^2.0.0
-  rive: ^0.11.5
   google_fonts: ^5.1.0
   provider: ^6.0.5
   get: ^4.6.5
@@ -79,6 +79,7 @@ flutter:
   assets:
     - assets/rive/
     - assets/images/
+    - assets/RiveAssets/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

@@ -119,9 +119,8 @@ class _LetterContentPageState extends State<LetterContentPage> {
   }
 
 
-  // 편지를 삭제하는 함수
+  // 편지와 해당 댓글을 삭제하는 함수
   void _deleteLetter(String letterId) {
-    // AlertDialog 또는 다른 방식을 통해 사용자에게 삭제를 확인받습니다.
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -139,19 +138,29 @@ class _LetterContentPageState extends State<LetterContentPage> {
               child: Text('삭제'),
               onPressed: () {
                 // Firebase에서 편지를 삭제합니다.
+                // 1. 편지 삭제
+                FirebaseDatabase.instance.ref()
+                    .child('Locations/Letters')
+                    .child(letterId)
+                    .remove()
+                    .then((_) {
+                  print("Letter successfully deleted from Locations.");
+                }).catchError((error) {
+                  print("Delete failed: $error");
+                });
+
+                // 2. 해당 편지의 댓글 삭제
                 FirebaseDatabase.instance.ref()
                     .child('Letters')
                     .child(letterId)
                     .remove()
                     .then((_) {
-                  // 성공적으로 삭제되었을 때의 처리
-                  print("Letter successfully deleted");
-                  Navigator.of(context).pop(); // 닫기
-                  Navigator.of(context).pop(); // 닫기
-                })
-                    .catchError((error) {
-                  // 오류 발생 시 처리
+                  print("Comments successfully deleted from Letters.");
+                  Navigator.of(context).pop(); // AlertDialog 닫기
+                  Navigator.of(context).pop(); // LetterContentPage 닫기
+                }).catchError((error) {
                   print("Delete failed: $error");
+                  Navigator.of(context).pop(); // AlertDialog 닫기
                 });
               },
             ),
@@ -160,6 +169,7 @@ class _LetterContentPageState extends State<LetterContentPage> {
       },
     );
   }
+
 
 
   @override
