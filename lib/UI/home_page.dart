@@ -9,21 +9,18 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:image_picker/image_picker.dart';
 import '../auth/AddFriendPage.dart';
-import '../model/menu.dart';
 import '../services/auth_services.dart';
-import '../utils/constants.dart';
-import '../utils/rive_utils.dart';
-import 'components/btm_nav_item.dart';
 import 'lettercontent_page.dart';
+import 'my_page.dart';
 
 class Letter {
   String id;
   LatLng position;
   String content;
   String userId;
-  String? imageUrl;  // 이미지 URL 필드 추가
+  String? imageUrl; // 이미지 URL 필드 추가
 
-  Letter({required this.id,required this.position, required this.content, required this.userId, this.imageUrl});
+  Letter({required this.id, required this.position, required this.content, required this.userId, this.imageUrl});
 }
 
 class Message {
@@ -42,8 +39,6 @@ class Message {
   }
 }
 
-
-
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
@@ -51,7 +46,8 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin{
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   AuthService authService = AuthService();
 
   GoogleMapController? _controller;
@@ -65,25 +61,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final Set<Marker> _letterMarkers = {};
   BitmapDescriptor sourceIcon = BitmapDescriptor.defaultMarker;
   BitmapDescriptor latterIcon = BitmapDescriptor.defaultMarker;
+  late String nickname;
 
   StreamSubscription<LocationData>? _locationSubscription;
 
   Map<String, Letter> _letters = {};
+  Set<Marker> _friendMarkers = {};
 
   XFile? _selectedImage;
-
-  Menu selectedBottonNav = bottomNavItems.first;
-
-  void updateSelectedBtmNav(Menu menu) {
-    if (selectedBottonNav != menu) {
-      setState(() {
-        selectedBottonNav = menu;
-      });
-    }
-  }
-
-  late AnimationController _animationController;
-  late Animation<double> animation;
 
   @override
   void initState() {
@@ -94,16 +79,82 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     setCustomUserIcon(currentUserId);
     setCustomMarkerIcon();
     _loadLetters();
-    _animationController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 200))
-      ..addListener(
-            () {
-          setState(() {});
-        },
-      );
-    animation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
-        parent: _animationController, curve: Curves.fastOutSlowIn));
+    populateFriendMarkers();
   }
+
+  Future<List<Map<String, dynamic>>> getFriendsData() async {
+    List<Map<String, dynamic>> friendsData = [];
+
+    // Assuming you have a current user ID
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    // Get the accepted friend requests
+    QuerySnapshot friendRequests = await _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests')
+        .where('status', isEqualTo: 'accepted')
+        .get();
+
+    // For each friend, get their details
+    for (var doc in friendRequests.docs) {
+      String friendId = doc.id; // Assuming the document ID is the friend's user ID
+
+      // Get friend's data from Firestore
+      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+      Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+
+      // Add additional data as needed, e.g., friend's UID
+      friendData['uid'] = friendId;
+
+      // Assuming you store the location in Realtime Database
+      // Fetch location data from Realtime Database
+      DataSnapshot locationSnapshot = await FirebaseDatabase.instance.ref('Locations').child(friendId).get();
+      if (locationSnapshot.exists) {
+        Map<dynamic, dynamic> locationData = locationSnapshot.value as Map<dynamic, dynamic>;
+        friendData['latitude'] = locationData['latitude'];
+        friendData['longitude'] = locationData['longitude'];
+      }
+
+      friendsData.add(friendData);
+    }
+
+    return friendsData;
+  }
+
+
+  Future<void> populateFriendMarkers() async {
+    // Assuming you have a method to get friend data
+    var friends = await getFriendsData(); // Implement this method as per your app's logic
+
+    setState(() async {
+      _friendMarkers.clear(); // Clear existing markers
+
+      for (var friend in friends) {
+        var latitude = friend['latitude'];
+        var longitude = friend['longitude'];
+        var nickname = friend['nickname'];
+        var photoURL = friend['photoURL'];
+
+        // Create a custom icon (if you have the photo URL)
+        BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
+            ImageConfiguration.empty,
+            photoURL // This should be a local asset or you need to handle network images separately
+        );
+
+        // Create a marker for this friend
+        var marker = Marker(
+          markerId: MarkerId(friend['uid']), // Use a unique ID, e.g., the friend's user ID
+          position: LatLng(latitude, longitude),
+          icon: customIcon,
+          infoWindow: InfoWindow(title: nickname),
+        );
+
+        _friendMarkers.add(marker);
+      }
+    });
+  }
+
 
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
@@ -124,7 +175,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return await ref.getDownloadURL();
   }
 
-
   void _loadLetters() {
     databaseReference!.child("Letters").onValue.listen((event) {
       var snapshot = event.snapshot;
@@ -137,11 +187,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             letters.forEach((key, value) {
               LatLng letterPosition = LatLng(value['latitude'], value['longitude']);
               Letter letter = Letter(
-                id: key,  // Firebase 키를 ID로 사용
+                id: key,
+                // Firebase 키를 ID로 사용
                 position: letterPosition,
                 content: value['content'],
                 userId: value['userId'],
-                imageUrl: value['imageUrl'],  // 이미지 URL 추가
+                imageUrl: value['imageUrl'], // 이미지 URL 추가
               );
               _letters[key] = letter;
               _letterMarkers.add(
@@ -220,15 +271,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return userData?['photoURL'] as String?;
   }
 
+  Future<String?> getUserNickname(String userId) async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
+    // 'data()' 메서드의 반환 값을 'Map<String, dynamic>'으로 캐스팅합니다.
+    Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
+
+    return userData?['nickname'] as String?;
+  }
+
   Future<void> setCustomUserIcon(String userId) async {
     String? photoURL = await getUserPhotoURL(userId);
+    String? nickName = await getUserNickname(userId);
 
     if (photoURL != null && photoURL.isNotEmpty) {
-      BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
-          ImageConfiguration.empty, photoURL);
+      BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, photoURL);
 
       setState(() {
         sourceIcon = customIcon;
+        nickname = nickName!;
       });
     } else {
       print("사용자 photoURL을 찾을 수 없음");
@@ -248,7 +309,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       builder: (BuildContext context) {
         TextEditingController _letterController = TextEditingController();
 
-        return AlertDialog(backgroundColor: Colors.white,
+        return AlertDialog(
+          backgroundColor: Colors.white,
           insetPadding: EdgeInsets.all(10),
           title: Image.asset("assets/images/latter.png", width: 60, height: 60),
           content: SingleChildScrollView(
@@ -258,8 +320,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("지금 위치에",style: TextStyle(fontWeight: FontWeight.bold),),
-                    Text("이야기를 남겨주세요",style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      "지금 위치에",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text("이야기를 남겨주세요", style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 SizedBox(height: 10),
@@ -270,13 +335,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
 
                 // Display the selected image
-                if (_selectedImage != null)
-                  Image.file(File(_selectedImage!.path)),
+                if (_selectedImage != null) Image.file(File(_selectedImage!.path)),
 
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white, // 텍스트 필드 색상
-                    boxShadow: [ // 그림자 추가
+                    boxShadow: [
+                      // 그림자 추가
                       BoxShadow(
                         color: Colors.grey.withOpacity(0.5),
                         spreadRadius: 2,
@@ -303,7 +368,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       onPressed: () {
                         Navigator.pop(context); // 다이얼로그 닫기
                       },
-                      icon: Image.asset("assets/images/cancel_button.png",width: 50,height: 50,),
+                      icon: Image.asset(
+                        "assets/images/cancel_button.png",
+                        width: 50,
+                        height: 50,
+                      ),
                     ),
                     IconButton(
                       onPressed: () {
@@ -314,7 +383,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         }
                         Navigator.pop(context); // 다이얼로그 닫기
                       },
-                      icon: Image.asset("assets/images/save_button.png",width: 180,height: 50,),
+                      icon: Image.asset(
+                        "assets/images/save_button.png",
+                        width: 180,
+                        height: 50,
+                      ),
                     ),
                   ],
                 ),
@@ -335,7 +408,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         'longitude': position.longitude,
         'content': content,
         'userId': userId,
-        'imageUrl': imageUrl,  // 이미지 URL 추가
+        'imageUrl': imageUrl, // 이미지 URL 추가
       });
     } else {
       print("User is not logged in");
@@ -348,7 +421,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -356,37 +428,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         title: Text("Peace Map"),
         centerTitle: true,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.account_circle), // 마이페이지 아이콘
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MyPage()),
+            );
+          },
+        ),
         actions: [IconButton(onPressed: authService.handleSignOut, icon: Icon(Icons.logout))],
       ),
       body: _getMap(),
-
-      floatingActionButton: Stack(
-          alignment: Alignment.bottomRight,
-          children: <Widget>[
-            Padding(
-              padding: EdgeInsets.only(bottom: 60.0),
-              child: FloatingActionButton(
-                onPressed: _navigateToAddFriendPage,
-                child: Icon(Icons.person_add),
-                tooltip: '친구 추가',
-                heroTag: 'addFriend',
-              ),
-            ),
-            FloatingActionButton(
-              foregroundColor: Color(0xFF6117D6),
-              backgroundColor: Color(0xFF6117D6),
-              onPressed: _showLetterDialog,
-              child: Icon(Icons.create,color: Colors.white,),
-            ),
-          ])
     );
   }
 
-  Widget _getMap(){
+  Widget _getMap() {
     return Stack(
       children: [
         GoogleMap(
-          myLocationEnabled:true,
+          myLocationEnabled: true,
           mapType: MapType.normal,
           initialCameraPosition: CameraPosition(target: _initialcameraposition, zoom: 18.0),
           onMapCreated: (GoogleMapController controller) {
@@ -394,54 +455,42 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           },
           markers: _currentPosition != null
               ? {
-            Marker(
-              markerId: MarkerId('source'),
-              position: _currentPosition!,
-              icon: sourceIcon,
-            ),
-            ..._letterMarkers,
-          }
+                  Marker(
+                    markerId: MarkerId('source'),
+                    position: _currentPosition!,
+                    icon: sourceIcon,
+                      infoWindow: InfoWindow(title: nickname),
+                  ),
+                  ..._letterMarkers,
+                  ..._friendMarkers,  // Markers for friends
+                }
               : {},
         ),
         Transform.translate(
-          offset: Offset(0, 10 * animation.value),
-          child: SafeArea(
-            child: Container(
-              padding:
-              const EdgeInsets.only(left: 12, top: 12, right: 12, bottom: 12),
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: BoxDecoration(
-                color: backgroundColor2.withOpacity(0.8),
-                borderRadius: const BorderRadius.all(Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: backgroundColor2.withOpacity(0.3),
-                    offset: const Offset(0, 20),
-                    blurRadius: 20,
-                  ),
+          offset: Offset(90, 600),
+          child: ElevatedButton(
+            onPressed: _navigateToAddFriendPage,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                children: [
+                  Icon(Icons.person_add_alt),
+                  Text("친구 추가")
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+          ),
+        ),
+        Transform.translate(
+          offset: Offset(220, 600),
+          child: ElevatedButton(
+            onPressed: _showLetterDialog,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
                 children: [
-                  ...List.generate(
-                    bottomNavItems.length,
-                        (index) {
-                      Menu navBar = bottomNavItems[index];
-                      return BtmNavItem(
-                        navBar: navBar,
-                        press: () {
-                          RiveUtils.chnageSMIBoolState(navBar.rive.status!);
-                          updateSelectedBtmNav(navBar);
-                        },
-                        riveOnInit: (artboard) {
-                          navBar.rive.status = RiveUtils.getRiveInput(artboard,
-                              stateMachineName: navBar.rive.stateMachineName);
-                        },
-                        selectedNav: selectedBottonNav,
-                      );
-                    },
-                  ),
+                  Icon(Icons.edit),
+                  Text("편지 작성")
                 ],
               ),
             ),

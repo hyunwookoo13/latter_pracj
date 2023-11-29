@@ -176,8 +176,6 @@ class _LetterContentPageState extends State<LetterContentPage> {
   Widget build(BuildContext context) {
     // 현재 사용자가 편지를 올린 사람과 동일한지 확인합니다.
     bool isOwner = FirebaseAuth.instance.currentUser?.uid == widget.letter.userId;
-
-
     return Scaffold(
       appBar: AppBar(
         title: Text("Letter Content"),
@@ -193,20 +191,22 @@ class _LetterContentPageState extends State<LetterContentPage> {
             ),
         ],
       ),
-      body: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.0),
-        child: Column(
-          children: [
-            // 이미지와 편지 내용을 표시합니다.
-            widget.letter.imageUrl != null
-                ? Image.network(widget.letter.imageUrl!)
-                : SizedBox(),
-            SizedBox(height: 10),
-            Text(widget.letter.content),
-            SizedBox(height: 10),
-            // 메시지 목록을 표시하는 StreamBuilder입니다.
-            Expanded(
-              child: StreamBuilder(
+      body: Padding(
+        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // 이미지와 편지 내용을 표시합니다.
+              widget.letter.imageUrl != null
+                  ? Image.network(widget.letter.imageUrl!)
+                  : SizedBox(),
+              SizedBox(height: 10),
+              Text(widget.letter.content),
+              SizedBox(height: 10),
+              // 메시지 목록을 표시하는 StreamBuilder입니다.
+
+              Divider(),
+              StreamBuilder(
                 stream: _messagesRef.onValue,
                 builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
                   if (snapshot.hasData && !snapshot.hasError) {
@@ -237,35 +237,37 @@ class _LetterContentPageState extends State<LetterContentPage> {
                   }
                 },
               ),
-            ),
-            // 메시지 입력 필드와 전송 버튼을 포함한 Row입니다.
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: "Type your message here...",
+              // 메시지 입력 필드와 전송 버튼을 포함한 Row입니다.
+              Divider(),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: "Type your message here...",
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.send),
-                  onPressed: () {
-                    if (_messageController.text.isNotEmpty) {
-                      var messageRef = _messagesRef.push();
-                      messageRef.set({
-                        'userId': FirebaseAuth.instance.currentUser?.uid,
-                        'content': _messageController.text,
-                        'timestamp': ServerValue.timestamp,
-                      });
-                      _messageController.clear();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
+                  IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: () {
+                      if (_messageController.text.isNotEmpty) {
+                        var messageRef = _messagesRef.push();
+                        messageRef.set({
+                          'userId': FirebaseAuth.instance.currentUser?.uid,
+                          'content': _messageController.text,
+                          'timestamp': ServerValue.timestamp,
+                        });
+                        _messageController.clear();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
