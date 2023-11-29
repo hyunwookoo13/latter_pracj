@@ -48,7 +48,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   AuthService authService = AuthService();
 
   GoogleMapController? _controller;
