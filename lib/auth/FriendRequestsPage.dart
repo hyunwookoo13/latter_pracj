@@ -67,6 +67,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
               backgroundImage: AssetImage(profileImage),
             ),
             title: Text(nickname),
+
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

@@ -167,6 +167,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
             ),
           ),
           if (friendRequestsCount > -1)
+
             Positioned(
               right: 37,
               top: -3,

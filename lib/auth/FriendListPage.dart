@@ -61,6 +61,7 @@ class _FriendListPageState extends State<FriendListPage> {
                   return ListTile(title: Text('사용자 정보를 불러오는 데 실패했습니다.'));
                 }
                 var userData = userSnapshot.data!;
+
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundImage: AssetImage(userData['photoURL'] ?? 'https://via.placeholder.com/150'),

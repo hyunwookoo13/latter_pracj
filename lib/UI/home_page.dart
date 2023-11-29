@@ -314,6 +314,7 @@ class _HomePageState extends State<HomePage> {
         'imageUrl': imageUrl,  // 이미지 URL 추가
       });
     } else {
+
       print("User is not logged in");
     }
   }

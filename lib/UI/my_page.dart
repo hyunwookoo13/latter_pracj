@@ -20,6 +20,7 @@ class _MyPageState extends State<MyPage> {
           IconButton(
             icon: Icon(Icons.groups), // 친구 리스트 아이콘
             onPressed: () {
+
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => FriendListPage()),
