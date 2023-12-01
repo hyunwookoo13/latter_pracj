@@ -468,30 +468,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         Transform.translate(
           offset: Offset(90, 600),
           child: ElevatedButton(
-            onPressed: _navigateToAddFriendPage,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                children: [
-                  Icon(Icons.person_add_alt),
-                  Text("친구 추가")
-                ],
-              ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.yellow,
+              shape: CircleBorder(),
+              padding: EdgeInsets.all(20),
+                shadowColor: Colors.black,
+                elevation: 4,
             ),
+            onPressed: _navigateToAddFriendPage,
+            child: Icon(Icons.person_add_alt,color: Colors.white,),
           ),
         ),
         Transform.translate(
-          offset: Offset(220, 600),
+          offset: Offset(260, 580),
           child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.yellow,
+              shape: CircleBorder(),
+              padding: EdgeInsets.all(20),
+            ),
             onPressed: _showLetterDialog,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                children: [
-                  Icon(Icons.edit),
-                  Text("편지 작성")
-                ],
-              ),
+              child: Icon(Icons.edit,color: Colors.white,),
             ),
           ),
         ),
