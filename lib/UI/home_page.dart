@@ -61,7 +61,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final Set<Marker> _letterMarkers = {};
   BitmapDescriptor sourceIcon = BitmapDescriptor.defaultMarker;
   BitmapDescriptor latterIcon = BitmapDescriptor.defaultMarker;
-  late String nickname;
+  String? nickname;
 
   StreamSubscription<LocationData>? _locationSubscription;
 
@@ -79,7 +79,40 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     setCustomUserIcon(currentUserId);
     setCustomMarkerIcon();
     _loadLetters();
-    populateFriendMarkers();
+    prepareFriendMarkers(); // 친구들의 위치를 로드하는 함수 호출
+  }
+
+  // 비동기 작업을 수행하고 결과를 임시 저장소에 저장하는 함수
+  Future<void> prepareFriendMarkers() async {
+    var friends = await getFriendsData();
+    List<Marker> tempMarkers = [];
+
+    for (var friend in friends) {
+      var latitude = friend['latitude'];
+      var longitude = friend['longitude'];
+      var nickname = friend['nickname'];
+      var photoURL = friend['photoURL'];
+
+      BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
+          ImageConfiguration.empty,
+          photoURL
+      );
+
+      var marker = Marker(
+        markerId: MarkerId(friend['uid']),
+        position: LatLng(latitude, longitude),
+        icon: customIcon,
+        infoWindow: InfoWindow(title: nickname),
+      );
+
+      tempMarkers.add(marker);
+    }
+
+    // setState를 호출하여 UI를 업데이트합니다.
+    setState(() {
+      _friendMarkers.clear();
+      _friendMarkers.addAll(tempMarkers);
+    });
   }
 
   Future<List<Map<String, dynamic>>> getFriendsData() async {
@@ -121,40 +154,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     return friendsData;
   }
-
-
-  Future<void> populateFriendMarkers() async {
-    // Assuming you have a method to get friend data
-    var friends = await getFriendsData(); // Implement this method as per your app's logic
-
-    setState(() async {
-      _friendMarkers.clear(); // Clear existing markers
-
-      for (var friend in friends) {
-        var latitude = friend['latitude'];
-        var longitude = friend['longitude'];
-        var nickname = friend['nickname'];
-        var photoURL = friend['photoURL'];
-
-        // Create a custom icon (if you have the photo URL)
-        BitmapDescriptor customIcon = await BitmapDescriptor.fromAssetImage(
-            ImageConfiguration.empty,
-            photoURL // This should be a local asset or you need to handle network images separately
-        );
-
-        // Create a marker for this friend
-        var marker = Marker(
-          markerId: MarkerId(friend['uid']), // Use a unique ID, e.g., the friend's user ID
-          position: LatLng(latitude, longitude),
-          icon: customIcon,
-          infoWindow: InfoWindow(title: nickname),
-        );
-
-        _friendMarkers.add(marker);
-      }
-    });
-  }
-
 
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
@@ -459,7 +458,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     markerId: MarkerId('source'),
                     position: _currentPosition!,
                     icon: sourceIcon,
-                      infoWindow: InfoWindow(title: nickname),
+                      infoWindow: InfoWindow(title: nickname ?? 'Unknown'),
                   ),
                   ..._letterMarkers,
                   ..._friendMarkers,  // Markers for friends
