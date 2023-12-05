@@ -9,12 +9,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latter_pracj/UI/plant_page.dart';
 import 'package:location/location.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import '../auth/AddFriendPage.dart';
 import '../services/auth_services.dart';
-import '../services/tree_service.dart';
 import 'lettercontent_page.dart';
-import 'my_page.dart';
 
 class Letter {
   String id;
