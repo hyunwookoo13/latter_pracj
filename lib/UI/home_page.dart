@@ -8,8 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../auth/AddFriendPage.dart';
 import '../services/auth_services.dart';
+import '../services/tree_service.dart';
 import 'lettercontent_page.dart';
 import 'my_page.dart';
 
@@ -419,6 +421,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         'userId': userId,
         'imageUrl': imageUrl, // 이미지 URL 추가
       });
+
+      Provider.of<TreeState>(context, listen: false).growTree();
 
       // 업로드가 완료되면 _selectedImage를 null로 설정합니다.
       setState(() {
