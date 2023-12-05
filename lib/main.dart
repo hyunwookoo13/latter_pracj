@@ -12,7 +12,7 @@ void main() async{
   );
   runApp(
     ChangeNotifierProvider(
-      create: (context) => TreeState(),
+      create: (context) => PlantState(),
       child: MyApp(),
     ),
   );

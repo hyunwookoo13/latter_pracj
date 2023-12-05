@@ -422,8 +422,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         'imageUrl': imageUrl, // 이미지 URL 추가
       });
 
-      Provider.of<TreeState>(context, listen: false).growTree();
-
       // 업로드가 완료되면 _selectedImage를 null로 설정합니다.
       setState(() {
         _selectedImage = null;
