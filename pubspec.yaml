@@ -49,6 +49,7 @@ dependencies:
   image_picker: ^1.0.4
   firebase_storage: ^11.5.2
   rive: ^0.12.3
+  lottie: ^2.7.0
 
 dev_dependencies:
   flutter_test:
@@ -79,6 +80,7 @@ flutter:
   assets:
     - assets/rive/
     - assets/images/
+    - assets/lottie/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

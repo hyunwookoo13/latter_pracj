@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:latter_pracj/auth/auth.dart';
-import 'package:rive/rive.dart';
+//import 'package:rive/rive.dart';
+import 'package:rive/rive.dart' hide LinearGradient;
+
 
 import '../../auth/login_page.dart';
 
@@ -28,26 +30,33 @@ class _SplashState extends State<Splash> {
     );
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        color: Colors.white, // Set the background color of your splash screen
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              Color(0xFF7209b7), // Purple
+              Color(0xFF3f37c9), // Indigo
+              Color(0xFF4895ef), // Blue
+              Color(0xFF4cc9f0), // Light Blue
+            ],
+          ),
+        ),
         child: Center(
-          child:  Container(
-            color: Colors.deepPurple, // 오른쪽 스플래시 화면의 배경색
-            alignment: Alignment.center,
-            child: Text(
-              'One Piece Map',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white, // 텍스트 색상
-              ),
+          child: Text(
+            'One Piece Map',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white, // Text color
             ),
           ),
         ),
       ),
     );
   }
+
 }
