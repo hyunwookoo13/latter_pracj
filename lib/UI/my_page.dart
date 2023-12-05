@@ -1,6 +1,5 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
+import 'package:latter_pracj/UI/plant_page.dart';
 import '../auth/FriendListPage.dart';
 
 class MyPage extends StatefulWidget {
@@ -20,10 +19,18 @@ class _MyPageState extends State<MyPage> {
           IconButton(
             icon: Icon(Icons.groups), // 친구 리스트 아이콘
             onPressed: () {
-
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => FriendListPage()),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.local_florist), // PlantScreen으로 이동하는 아이콘
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PlantScreen()),
               );
             },
           ),

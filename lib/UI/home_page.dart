@@ -375,12 +375,21 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     ),
                     IconButton(
                       onPressed: () {
-                        // 편지 내용 저장 및 처리 코드 추가
-                        if (_currentPosition != null && _letterController.text.isNotEmpty) {
-                          _saveLetterWithImage(_currentPosition!, _letterController.text, _selectedImage!);
-                          _letterController.clear();
+                        if (_selectedImage == null || _letterController.text.isEmpty) {
+                          // 이미지 또는 텍스트가 없을 경우 메시지 표시
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('이미지와 편지 내용을 모두 입력해주세요.'),
+                            ),
+                          );
+                        } else {
+                          // 편지 내용 저장 및 처리 코드 추가
+                          if (_currentPosition != null) {
+                            _saveLetterWithImage(_currentPosition!, _letterController.text, _selectedImage!);
+                            _letterController.clear();
+                          }
+                          Navigator.pop(context); // 다이얼로그 닫기
                         }
-                        Navigator.pop(context); // 다이얼로그 닫기
                       },
                       icon: Image.asset(
                         "assets/images/save_button.png",
@@ -388,6 +397,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         height: 50,
                       ),
                     ),
+
                   ],
                 ),
               ],
@@ -402,12 +412,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     String? userId = _auth.currentUser?.uid;
     if (userId != null) {
       String imageUrl = await uploadImageToFirebase(imageFile);
-      databaseReference!.child("Letters").push().set({
+      await databaseReference!.child("Letters").push().set({
         'latitude': position.latitude,
         'longitude': position.longitude,
         'content': content,
         'userId': userId,
         'imageUrl': imageUrl, // 이미지 URL 추가
+      });
+
+      // 업로드가 완료되면 _selectedImage를 null로 설정합니다.
+      setState(() {
+        _selectedImage = null;
       });
     } else {
       print("User is not logged in");
