@@ -66,16 +66,16 @@ class _PlantScreenState extends State<PlantScreen> {
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 60),
-            child: Text(
-              "편지 나무",
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
+          // const Padding(
+          //   padding: EdgeInsets.only(top: 60),
+          //   child: Text(
+          //     "편지 나무",
+          //     style: TextStyle(
+          //         color: Colors.white,
+          //         fontSize: 30,
+          //         fontWeight: FontWeight.bold),
+          //   ),
+          // ),
           Expanded(
             child: Center(
               child: Consumer<PlantState>(
@@ -87,9 +87,6 @@ class _PlantScreenState extends State<PlantScreen> {
                   Container(
                     width: treeWidth,
                     height: treeWidth,
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(treeWidth / 2),
-                        border: Border.all(color: Colors.white12, width: 10)),
                     child: Rive(alignment: Alignment.center, artboard: _riveArtboard!),
                   );
                 },
