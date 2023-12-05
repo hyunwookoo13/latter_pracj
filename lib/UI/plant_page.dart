@@ -42,23 +42,19 @@ class _PlantScreenState extends State<PlantScreen> {
     double treeWidth = MediaQuery.of(context).size.width - 40;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white24,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_outlined,color: Colors.white,),
-              onPressed: () { Navigator.of(context).pop(); },
-              //tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-            );
-          },
+        //backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_outlined),
+          onPressed: () { Navigator.of(context).pop(); },
+          //tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
         ),
-        title: Text("마이 페이지",style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),),
+        title: Text("마이 페이지",),
         centerTitle: true,
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.groups,color: Colors.white,), // 친구 리스트 아이콘
+            icon: Icon(Icons.groups), // 친구 리스트 아이콘
             onPressed: () {
               Navigator.push(
                 context,
@@ -73,7 +69,7 @@ class _PlantScreenState extends State<PlantScreen> {
           const Padding(
             padding: EdgeInsets.only(top: 60),
             child: Text(
-              "Stay Focused",
+              "편지 나무",
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 30,
@@ -105,7 +101,7 @@ class _PlantScreenState extends State<PlantScreen> {
             child: Consumer<PlantState>(
               builder: (context, treeState, _) {
                 return Text(
-                  'Uploaded Letters: ${treeState.letterCount}',
+                  '내가 올린 편지 수: ${treeState.letterCount}',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
