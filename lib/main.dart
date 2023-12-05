@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:latter_pracj/UI/start/splash.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:latter_pracj/services/tree_service.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
 void main() async{
@@ -8,7 +10,12 @@ void main() async{
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => TreeState(),
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
