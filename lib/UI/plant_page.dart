@@ -87,12 +87,44 @@ class _PlantScreenState extends State<PlantScreen> {
                   Container(
                     width: treeWidth,
                     height: treeWidth,
-                    child: Rive(alignment: Alignment.center, artboard: _riveArtboard!),
+                    // Stack을 사용하여 텍스트를 Rive 위젯 위에 오버레이합니다.
+                    child: Stack(
+                      alignment: Alignment.center, // Stack의 자식들을 중앙 정렬합니다.
+                      children: [
+                        Rive(artboard: _riveArtboard!), // Rive 애니메이션 위젯
+                        Positioned( // Positioned를 사용하여 텍스트의 위치를 조정합니다.
+                          top: 10, // 상단으로부터의 거리
+                          left: 10, // 우측으로부터의 거리
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "나무 키우기: ",
+                                style: TextStyle(
+                                  fontSize: 16, // 글꼴 크기 설정
+                                  color: Colors.white, // 글꼴 색상을 흰색으로 설정
+                                  fontWeight: FontWeight.bold, // 글꼴 두께를 굵게 설정
+                                ),
+                              ),
+                              Text(
+                                "편지를 올려 나무를 키워봐요",
+                                style: TextStyle(
+                                  fontSize: 16, // 글꼴 크기 설정
+                                  color: Colors.white, // 글꼴 색상을 흰색으로 설정
+                                  fontWeight: FontWeight.bold, // 글꼴 두께를 굵게 설정
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: Consumer<PlantState>(
